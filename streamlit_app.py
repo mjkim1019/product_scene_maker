@@ -1,53 +1,71 @@
+from io import BytesIO
+
 import streamlit as st
+from PIL import Image
+#from rembg import remove
 from openai import OpenAI
 
-# Show title and description.
-st.title("📄 Document question answering")
-st.write(
-    "Upload a document below and ask a question about it – GPT will answer! "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-)
+def setup_page():
+    # Show title and description.
+    st.set_page_config(layout="wide", page_title="Product Scene Maker")
 
-# Ask user for their OpenAI API key via `st.text_input`.
-# Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
-# via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
-if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-else:
+    st.write("## 🎨 Product Scene Maker: AI로 만드는 맞춤형 상품 배경")
+    st.write(
+        "AI로 만드는 맞춤형 상품 배경: 이미지를 업로드하고 원하는 프롬프트를 작성해보세요"
+    )
+    st.sidebar.write("## Upload and download :gear:")
 
-    # Create an OpenAI client.
-    client = OpenAI(api_key=openai_api_key)
+# Download the fixed image
+def convert_image(img):
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    byte_im = buf.getvalue()
+    return byte_im
 
-    # Let the user upload a file via `st.file_uploader`.
-    uploaded_file = st.file_uploader(
-        "Upload a document (.txt or .md)", type=("txt", "md")
+# Package the transform into a function
+def fix_image(upload):
+    # Create the columns
+    col1, col2 = st.columns(2)
+
+    image = Image.open(upload)
+    col1.write("Original Image :camera:")
+    col1.image(image)
+
+
+    col2.write("Fixed Image :wrench:")
+    #fixed = remove(image)
+    fixed = image
+    col2.image(fixed)
+    st.sidebar.markdown("\n")
+    st.sidebar.download_button(
+        "Download fixed image", convert_image(fixed), "fixed.png", "image/png"
     )
 
-    # Ask the user for a question via `st.text_area`.
-    question = st.text_area(
-        "Now ask a question about the document!",
-        placeholder="Can you give me a short summary?",
-        disabled=not uploaded_file,
-    )
+def process_and_display_images(uploaded_files):
+    """Processes the uploaded files and displays the original and result images."""
+    if not uploaded_files:
+        st.warning("Please upload an image.")
+        return
 
-    if uploaded_file and question:
+    if not st.sidebar.button("Remove Background"):
+        return
 
-        # Process the uploaded file and question.
-        document = uploaded_file.read().decode()
-        messages = [
-            {
-                "role": "user",
-                "content": f"Here's a document: {document} \n\n---\n\n {question}",
-            }
-        ]
 
-        # Generate an answer using the OpenAI API.
-        stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=messages,
-            stream=True,
-        )
+def main():
+    setup_page()
 
-        # Stream the response to the app using `st.write_stream`.
-        st.write_stream(stream)
+    # Create the file uploader
+    my_upload = st.sidebar.file_uploader("Upload an image", type=["png", "jpg", "jpeg"])
+    
+    # Fix the image!
+    if my_upload is not None:
+        image_upload = my_upload
+    else:
+        image_upload = "./quokka.jpeg"
+
+    fix_image(upload=image_upload)
+
+
+
+if __name__ == "__main__":
+    main()
